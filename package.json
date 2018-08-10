@@ -1,0 +1,27 @@
+{
+  "name": "chanchain",
+  "version": "1.0.0",
+  "description": "A simple imageboard on Ethereum",
+  "main": "index.js",
+  "scripts": {    
+    "dev": "lite-server"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/techieanant/ChanChain.git"
+  },
+  "keywords": [
+    "ethereum",
+    "dapp"
+  ],
+  "author": "Anant Upadhyay",
+  "license": "Unlicense",
+  "bugs": {
+    "url": "https://github.com/techieanant/ChanChain/issues"
+  },
+  "homepage": "https://github.com/techieanant/ChanChain#readme",
+  "devDependencies": {
+    "lite-server": "^2.4.0",
+    "truffle": "^4.1.13"
+  }
+}
