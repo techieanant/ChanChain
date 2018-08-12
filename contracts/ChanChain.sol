@@ -8,6 +8,9 @@ contract ChanChain {
 	// For setting owner
 	address private owner;
 
+	//Circuit Breaker for pausing the contract
+	bool private isPaused = false;
+
 	// Owner can set fees
 	uint256 public feeNewThread;
 	uint256 public feeReplyThread;
@@ -42,9 +45,10 @@ contract ChanChain {
 	mapping (uint256 => reply) public replies;
 	uint256 public indexReplies = 1;
 
-	// Keeping track of last 20 active threads
-	uint256[20] public lastThreads;
-	uint256 public indexLastThreads = 0; // the index of the thread that was added last in lastThreads
+	// Keeping track of last 32 active threads
+	uint256[32] public lastThreads;
+	// Keeping track of index of the thread that was added last in lastThreads
+	uint256 public indexLastThreads = 0;
 
 	//
 	// Events
@@ -74,6 +78,12 @@ contract ChanChain {
 			_;
 		}
 
+/// @dev Create a modifer that checks if the contract is paused
+		modifier isHalted() {
+			require(isPaused == false);
+			_;
+		}
+
 	//
 	// Constructor
 	//
@@ -86,6 +96,12 @@ contract ChanChain {
 		feeReplyThread = _feeReplyThread;
 	}
 
+/// @notice Owner can pause the contract
+/// @dev Owner can call this function to toggle contract isPaused state
+	function toggleContractActive() onlyOwner public
+	{
+	    isPaused = !isPaused;
+	}
 
 /// @notice Owner can reset fee in the future
 /// @dev Sets feeNewThread and feeReplyThread
@@ -99,7 +115,7 @@ contract ChanChain {
 /// @notice Owner can withdraw fee from contract
 /// @dev Transfers all ether in contract to owner
 /// @param _amount Amount to withdraw from contract (uint256)
-	function withdraw(uint256 _amount) public {
+	function withdraw(uint256 _amount) public isHalted {
 		owner.transfer(_amount);
 	}
 
@@ -110,7 +126,8 @@ contract ChanChain {
 	function createThread(string _text, bytes32 _ipfsHash)
 	payable
 	public
-	payFeeNewThread {
+	payFeeNewThread
+	isHalted {
 		// Calculate a new thread ID and post
 		threads[indexThreads] = thread(_text, _ipfsHash, 0, 0, now);
 		// Add it to our last active threads array
@@ -130,7 +147,8 @@ contract ChanChain {
 	function replyThread(uint256 _replyTo, string _text, bytes32 _ipfsHash)
 	payable
 	public
-	payFeeReplyThread {
+	payFeeReplyThread
+	isHalted {
 		// Make sure you can't reply to an nonexistant thread
 		require(_replyTo < indexThreads && _replyTo > 0);
 		// Post the reply with nextReply = 0 as this is the last message in the chain
