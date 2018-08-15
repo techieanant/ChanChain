@@ -2,8 +2,37 @@ body {
   color: #fff;
 }
 
+.account li {
+  margin-left: 1em;
+  word-break: keep-all;
+}
+
+.modal-content {
+  background-color: darkslategray;
+}
+
 .bd-callout-warning {
-  border-left-color: #f0ad4e !important; 
+  border-left-color: #f0ad4e !important;
+}
+
+.card {
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 1em;
+  cursor: pointer;
+  transition: transform 0.5s;
+}
+
+.card:hover {
+  box-shadow: 0px 0px 15px white;
+  -ms-transform: scale(1.1); /* IE 9 */
+  -webkit-transform: scale(1.1); /* Safari 3-8 */
+  transform: scale(1.05);
+}
+
+
+.card-body {
+  background-color: darkslategray;
 }
 
 .container-fluid {
