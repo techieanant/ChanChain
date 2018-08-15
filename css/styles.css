@@ -2,6 +2,10 @@ body {
   color: #fff;
 }
 
+.alert {
+  color: blue;
+}
+
 .account li {
   margin-left: 1em;
   word-break: keep-all;

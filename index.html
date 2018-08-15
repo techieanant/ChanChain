@@ -5,11 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title>ChanChain</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 
 </head>
 
 <body class="bg-dark">
+  <div id="alertRow" class="row d-none">
+    <div class="col-12 col-md-12 container-fluid">
+      <div class="alert alert-danger" role="alert">
+        <i class="fa fa-fw fa-exclamation-circle mr-3 align-self-center"></i>
+        <strong id="alertMessage">Please install or unlock Metamask to interact with this application.</strong>
+      </div>
+    </div>
+  </div>
+
   <navbar class="navbar navbar-expand navbar-dark flex-column flex-md-row bd-navbar">
     <a class="navbar-brand" href="#">
       <img class="d-inline-block align-top" height="32" width="32" src="https://unpkg.com/simple-icons@latest/icons/stackoverflow.svg" />
@@ -18,11 +28,11 @@
     <ul class="navbar-nav ml-auto account">
       <li>
           Account:
-          <span id="wallet-address">0x2323435345df234f34fefs4354345</span>
+          <span id="wallet-address">Null</span>
       </li>
       <li>
           Balance:
-          <span id="wallet-balance">0.45</span>&nbsp;ETH
+          <span id="wallet-balance">Null</span>&nbsp;ETH
       </li>
     </ul>
   </navbar>
@@ -90,7 +100,7 @@
   </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
 <script src="js/app.js"></script>
 </body>
