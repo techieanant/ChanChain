@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A simple imageboard on Ethereum",
   "main": "index.js",
-  "scripts": {    
+  "scripts": {
     "dev": "lite-server"
   },
   "repository": {
@@ -22,6 +22,7 @@
   "homepage": "https://github.com/techieanant/ChanChain#readme",
   "devDependencies": {
     "lite-server": "^2.4.0",
-    "truffle": "^4.1.13"
+    "truffle": "^4.1.13",
+    "web3": "^1.0.0-beta.35"
   }
 }

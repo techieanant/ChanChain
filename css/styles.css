@@ -34,8 +34,13 @@ body {
   transform: scale(1.05);
 }
 
+.card-header {
+  padding-top: 0.1em;
+  padding-bottom: 0.1em;
+}
 
-.card-body {
+
+.card-body, .card-header {
   background-color: darkslategray;
 }
 
