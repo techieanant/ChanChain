@@ -18,7 +18,7 @@ contract ChanChain {
 	// Thread Structure
 	struct thread {
 		string text;
-		bytes32 ipfsHash;
+		string ipfsHash;
 
 		uint256 indexLastReply;
 		uint256 indexFirstReply;
@@ -33,7 +33,7 @@ contract ChanChain {
 	// Reply structure
 	struct reply {
 		string text;
-		bytes32 ipfsHash;
+		string ipfsHash;
 
 		uint256 replyTo;
 		uint256 nextReply;
@@ -54,8 +54,8 @@ contract ChanChain {
 	// Events
 	//
 
-	event newThreadEvent(uint256 threadId, string text, bytes32 ipfsHash, uint256 timestamp);
-	event newReplyEvent(uint256 replyId, uint256 replyTo, string text, bytes32 ipfsHash, uint256 timestamp);
+	event newThreadEvent(uint256 threadId, string text, string ipfsHash, uint256 timestamp);
+	event newReplyEvent(uint256 replyId, uint256 replyTo, string text, string ipfsHash, uint256 timestamp);
 
 	//
 	// Modifiers
@@ -122,8 +122,8 @@ contract ChanChain {
 	// Create a Thread
 /// @notice Create a new thread if the fees is paid
 /// @dev Creates a new thread, updates last active thread index
-/// @param _text Text content for the thread post (string), _ipfsHash IPFS hash of image (bytes32)
-	function createThread(string _text, bytes32 _ipfsHash)
+/// @param _text Text content for the thread post (string), _ipfsHash IPFS hash of image (string)
+	function createThread(string _text, string _ipfsHash)
 	payable
 	public
 	payFeeNewThread
@@ -143,8 +143,8 @@ contract ChanChain {
 	// Reply to a thread
 /// @notice Reply to a thread if the fees is paid
 /// @dev Replies to a thread after making sure it exists, updates last active thread index
-/// @param _replyTo Index of the thread associated with this reply, _text Text content for the thread post (string), _ipfsHash IPFS hash of image (bytes32)
-	function replyThread(uint256 _replyTo, string _text, bytes32 _ipfsHash)
+/// @param _replyTo Index of the thread associated with this reply, _text Text content for the thread post (string), _ipfsHash IPFS hash of image (string)
+	function replyThread(uint256 _replyTo, string _text, string _ipfsHash)
 	payable
 	public
 	payFeeReplyThread

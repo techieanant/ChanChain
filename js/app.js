@@ -1,11 +1,18 @@
 App = {
   web3Provider: null,
+  ipfsProvider: 'ipfs.infura.io',
+  ipfs: null,
   contracts: {},
   account: 0x0,
+  currentThread: [],
   loading: false,
 
   init: function() {
     return App.initWeb3();
+  },
+
+  initIPFS: function() {
+    App.ipfs = window.IpfsApi(App.ipfsProvider, '5001');
   },
 
   initWeb3: function() {
@@ -24,6 +31,7 @@ App = {
     }
 
     App.displayAccountInfo();
+    App.initIPFS();
     return App.initContract();
   },
 
@@ -54,7 +62,8 @@ App = {
       // Listen for events
       // App.listenToEvents();
       App.fetchAllThreads();
-      console.log(App.contracts.ChanChain.abi);
+
+      // console.log(artifact);
       // Retrieve the article from the smart contract
       // return App.reloadArticles();
     });
@@ -63,9 +72,11 @@ App = {
   fetchAllThreads: function(){
     App.contracts.ChanChain.deployed().then(instance => {
       instance.indexThreads.call().then(index => {
-        for(i=1; i <= index.toNumber() - 1; i++) {
+        for(var i = 1; i < index.toNumber(); i++) {
+          App.currentThread.push(i);
             instance.threads(i).then(data => {
-              App.displayThreadCards(data[0], data[1], data[4].toNumber());
+              var ipfsURL = "https://" + App.ipfsProvider + "/ipfs/" + data[1];
+              App.displayThreadCards(data[0], ipfsURL, data[4].toNumber());
             });
         }
       });
@@ -73,14 +84,22 @@ App = {
   },
 
   displayThreadCards: function(text, imgsrc, timestamp) {
-    var cardsRow = $('#cardsRow');
+    var contentRow = $('#contentRow');
     var cardTemplate = $('#cardTemplate');
-    var shortText = jQuery.trim(text).substring(0, 30).split(" ").slice(0, -1).join(" ") + "...";
+    var shortText = $.trim(text).substring(0, 150).split(" ").slice(0, -1).join(" ") + " .....";
+    var datePosted = new Date(timestamp * 1000);
+    var id = contentRow.find('.card').length + 1;
     cardTemplate.find('.card-text').text(shortText);
     cardTemplate.find('.card-img-top').attr('src', imgsrc);
-    cardTemplate.find('.card-header').text(timestamp);
+    cardTemplate.find('.card-header').text(datePosted.toLocaleString());
+    cardTemplate.find('.card').attr('id', id);
     cardTemplate.find('.card').removeClass('d-none');
-    cardsRow.append(cardTemplate.html());
+    cardTemplate.find('.card').attr('onclick', 'App.displayThreadPage(' + id + ')');
+    contentRow.append(cardTemplate.html());
+  },
+
+  displayThreadPage: function(index) {
+    console.log(index);
   },
 
   // Listen for events raised from the contract

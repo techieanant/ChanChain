@@ -29,9 +29,9 @@ body {
 
 .card:hover {
   box-shadow: 0px 0px 15px white;
-  -ms-transform: scale(1.1); /* IE 9 */
-  -webkit-transform: scale(1.1); /* Safari 3-8 */
-  transform: scale(1.05);
+  -ms-transform: scale(1.01); /* IE 9 */
+  -webkit-transform: scale(1.01); /* Safari 3-8 */
+  transform: scale(1.01);
 }
 
 .card-header {
@@ -42,6 +42,11 @@ body {
 
 .card-body, .card-header {
   background-color: darkslategray;
+}
+
+.card-img-top {
+  object-fit: cover;
+  max-height: 15rem;
 }
 
 .container-fluid {
