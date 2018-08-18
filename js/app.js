@@ -4,8 +4,9 @@ App = {
   ipfs: null,
   contracts: {},
   account: 0x0,
-  currentThread: [],
+  lastActiveThreads: [],
   loading: false,
+  cardView: true,
 
   init: function() {
     return App.initWeb3();
@@ -20,8 +21,8 @@ App = {
       App.web3Provider = web3.currentProvider;
       web3 = new Web3(web3.currentProvider);
     } else {
-      App.web3Provider = new Web3.providers.HttpProvider('http://localhost:9545');
-      web3 = new Web3(App.web3Provider);
+      // App.web3Provider = new Web3.providers.HttpProvider('http://localhost:9545');
+      // web3 = new Web3(App.web3Provider);
     }
 
     if(web3.eth.accounts.length > 0) {
@@ -60,8 +61,7 @@ App = {
       App.contracts.ChanChain.setProvider(App.web3Provider);
 
       // Listen for events
-      // App.listenToEvents();
-      App.fetchAllThreads();
+      App.getLastActiveThreads();
 
       // console.log(artifact);
       // Retrieve the article from the smart contract
@@ -69,58 +69,160 @@ App = {
     });
   },
 
-  fetchAllThreads: function(){
+  getLastActiveThreads: function(){
     App.contracts.ChanChain.deployed().then(instance => {
-      instance.indexThreads.call().then(index => {
-        for(var i = 1; i < index.toNumber(); i++) {
-          App.currentThread.push(i);
-            instance.threads(i).then(data => {
-              var ipfsURL = "https://" + App.ipfsProvider + "/ipfs/" + data[1];
-              App.displayThreadCards(data[0], ipfsURL, data[4].toNumber());
-            });
+      instance.indexLastThreads.call().then(id => {
+        var indexLastThreads = id.toNumber();
+        for(var i = 0; i < 32; i++) {
+          instance.lastThreads.call(i).then(response => {
+            var threadId = response.toNumber();
+            if(threadId != 0) {
+              instance.threads(threadId).then(response => {
+                App.pushToThreads(App.createThreadObject(threadId,response[0],response[1],response[4]));
+              });
+            }
+          });
+          indexLastThreads = (indexLastThreads + 1) % 32;
         }
+      }).then(() => {
+        instance.indexReplies.call().then(response => {
+          var replyIndex = [];
+          for(var i = 1; i < response.toNumber(); i++) {
+            replyIndex.push(i);
+          }
+          $.each(replyIndex, function( index, value ) {
+            instance.replies(value).then(response => {
+            App.pushToReplies(response[2], App.createReplyObject(value, response[2], response[0], response[1], response[4]));
+            });
+          });
+        });
+      }).then(() => {
+        App.listenToEvents();
       });
     });
   },
 
-  displayThreadCards: function(text, imgsrc, timestamp) {
+  pushToThreads: function(threadObj) {
+    for(var i = 0; i < App.lastActiveThreads.length; i++)
+        if(App.lastActiveThreads[i].threadId == threadObj.threadId) return;
+    App.lastActiveThreads.push(threadObj);
+    if(App.lastActiveThreads.length > 32)
+      App.lastActiveThreads.shift();
+  },
+
+  pushToReplies: function(threadId, replyObj) {
+    for(var i = 0; i < App.lastActiveThreads.length; i++) {
+      if(App.lastActiveThreads[i].threadId == replyObj.threadId.toNumber()) {
+        for(var j = 0; j < App.lastActiveThreads[i].replies.length; j++) {
+          if(App.lastActiveThreads[i].replies[j].replyId == replyObj.reply.replyId) {
+            return;
+          }
+        }
+        console.log("Adding reply to thread: " + replyObj.threadId + " :: " + replyObj.reply);
+        App.lastActiveThreads[i].replies.push(replyObj.reply);
+      }
+    }
+  },
+
+  createThreadObject: function(id, text, ipfshash, timestamp) {
+    return {
+      threadId: id,
+      text: text,
+      ipfshash: ipfshash,
+      timestamp: timestamp,
+      replies: []
+    }
+  },
+
+  createReplyObject: function(replyId, replyTo, text, ipfshash, timestamp) {
+    return {
+      threadId: replyTo,
+      reply: {
+        replyId: replyId,
+        text: text,
+        ipfshash: ipfshash,
+        timestamp: timestamp
+      }
+    }
+  },
+
+  reloadAll: function(){
+    $('#contentRow').empty();
+    $.each(App.lastActiveThreads, function(key, thread){
+      App.displayThreadCards(thread.text, thread.ipfshash, thread.timestamp.toNumber(), thread.threadId);
+    });
+  },
+
+  fetchReply: function(){
+
+  },
+
+  displayThreadCards: function(text, ipfshash, timestamp, threadId) {
+    if(ipfshash == "") {
+      ipfshash = "QmdrA4mUBg6bKnhhkTXBkbpEfEeqwTZLdBwi11Hx9Q5VhF";
+    }
+    var imgsrc = "https://" + App.ipfsProvider + "/ipfs/" + ipfshash;
     var contentRow = $('#contentRow');
     var cardTemplate = $('#cardTemplate');
     var shortText = $.trim(text).substring(0, 150).split(" ").slice(0, -1).join(" ") + " .....";
     var datePosted = new Date(timestamp * 1000);
-    var id = contentRow.find('.card').length + 1;
+    // var id = contentRow.find('.card').length + 1;
     cardTemplate.find('.card-text').text(shortText);
     cardTemplate.find('.card-img-top').attr('src', imgsrc);
     cardTemplate.find('.card-header').text(datePosted.toLocaleString());
-    cardTemplate.find('.card').attr('id', id);
+    cardTemplate.find('.card').attr('id', threadId);
     cardTemplate.find('.card').removeClass('d-none');
-    cardTemplate.find('.card').attr('onclick', 'App.displayThreadPage(' + id + ')');
+    cardTemplate.find('.card').attr('onclick', 'App.displayThreadPage(' + threadId + ')');
     contentRow.append(cardTemplate.html());
   },
 
-  displayThreadPage: function(index) {
-    console.log(index);
+  displayThreadPage: function(threadId) {
+    $.each(App.lastActiveThreads, function(key, thread){
+      if(App.lastActiveThreads[key].threadId == threadId) {
+        var threadTemplate = App.createThreadPage(thread.text, thread.ipfshash, thread.timestamp, thread.threadId);
+        var contentRow = $('#contentRow');
+        contentRow.find('.card').remove();
+        contentRow.append(threadTemplate);
+        $('#backToHome').removeClass('d-none');
+        if(thread.replies.length > 0) {
+          $.each(thread.replies, function(key, reply){
+            var replyTemplate = App.createThreadPage(reply.text, reply.ipfshash, reply.timestamp, reply.replyId);
+            contentRow.append(replyTemplate);
+          });
+        }
+      }
+    });
+  },
+
+  createThreadPage: function(text, ipfshash, timestamp, threadId) {
+    if(ipfshash == "") {
+      ipfshash = "QmdrA4mUBg6bKnhhkTXBkbpEfEeqwTZLdBwi11Hx9Q5VhF";
+    }
+    var ipfsURL = "https://" + App.ipfsProvider + "/ipfs/" + ipfshash;
+    var threadTemplate = $('#threadTemplate');
+    var datePosted = new Date(timestamp.toNumber() * 1000);
+    threadTemplate.find('#threadPostImg').attr('src', ipfsURL);
+    threadTemplate.find('#threadPostText').text(text);
+    threadTemplate.find('#threadPostTimestamp').text(datePosted.toLocaleString());
+    threadTemplate.find('.threadPost').attr('id', threadId);
+    threadTemplate.find('.threadPost').removeClass('d-none');
+    return threadTemplate.html();
   },
 
   // Listen for events raised from the contract
   listenToEvents: function() {
     App.contracts.ChanChain.deployed().then(function(instance) {
-      instance.sellArticleEvent({}, {
-        fromBlock: 0,
-        toBlock: 'latest'
-      }).watch(function(error, event) {
-        $("#events").append('<li class="list-group-item">' + event.args
-          ._name + ' is for sale' + '</li>');
-        App.reloadArticles();
+      instance.newThreadEvent().watch(function(error, event) {
+        console.log("NewThreadEvent received: " + event);
+        App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
+        App.reloadAll();
+        // App.fetchThreadCards(event.args.threadId.toNumber());
       });
 
-      instance.buyArticleEvent({}, {
-        fromBlock: 0,
-        toBlock: 'latest'
-      }).watch(function(error, event) {
-        $("#events").append('<li class="list-group-item">' + event.args
-          ._buyer + ' bought ' + event.args._name + '</li>');
-        App.reloadArticles();
+      instance.newReplyEvent().watch(function(error, event) {
+        console.log("newReplyEvent received: " + event);
+        App.pushToReplies(event.args.replyTo.toNumber(), App.createReplyObject(event.args.replyId.toNumber(), event.args.replyTo, event.args.text, event.args.ipfsHash, event.args.timestamp));
+        App.reloadAll();
       });
     });
   },

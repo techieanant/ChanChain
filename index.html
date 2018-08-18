@@ -42,14 +42,17 @@
         <div class = "bd-callout bd-callout-warning">
           <p>The content on this imageboard is not moderated. Please click the button to enable all images. </p>
           <button id="enableImages" data-toggle="modal" data-target="#exampleModalCenter" class="btn btn-primary">Enable Images</button>
+          <button id="backToHome" class="btn btn-primary d-none" onclick="location.reload();">Go Back</button>
         </div>
       </div>
     </div>
   </section>
+
   <section class="row">
     <div class="col-12 col-md-12">
       <div id="contentRow" class="container-fluid row">
-        <!-- Cards -->
+
+
       </div>
     </div>
   </section>
@@ -64,6 +67,25 @@
       <img class="card-img-top" src="https://i2.wp.com/beebom.com/wp-content/uploads/2016/01/Reverse-Image-Search-Engines-Apps-And-Its-Uses-2016.jpg" alt="Card image cap">
       <div class="card-body">
         <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content. Some quick example text to build on the card title and make up the bulk of the card's content. Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Thread Temlate -->
+
+  <div id="threadTemplate" class="d-none">
+    <div class="col-10">
+      <div class="d-none threadPost">
+        <div class="threadPostTimestamp" id="threadPostTimestamp">
+
+        </div>
+        <div class="row">
+          <div class="col-4">
+            <img id="threadPostImg" class="threadPostImg" src="" />
+          </div>
+          <div id="threadPostText" class="col-8">
+          </div>
+        </div>
       </div>
     </div>
   </div>
