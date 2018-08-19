@@ -6,14 +6,14 @@ App = {
   account: 0x0,
   lastActiveThreads: [],
   loading: false,
-  cardView: true,
 
   init: function() {
+    App.nsfwToggle();
     return App.initWeb3();
   },
 
   initIPFS: function() {
-    App.ipfs = window.IpfsApi(App.ipfsProvider, '5001');
+    App.ipfs = window.IpfsApi(App.ipfsProvider, '5001', {protocol: 'https'});
   },
 
   initWeb3: function() {
@@ -21,8 +21,8 @@ App = {
       App.web3Provider = web3.currentProvider;
       web3 = new Web3(web3.currentProvider);
     } else {
-      // App.web3Provider = new Web3.providers.HttpProvider('http://localhost:9545');
-      // web3 = new Web3(App.web3Provider);
+      App.web3Provider = new Web3.providers.HttpProvider('http://localhost:9545');
+      web3 = new Web3(App.web3Provider);
     }
 
     if(web3.eth.accounts.length > 0) {
@@ -102,6 +102,48 @@ App = {
     });
   },
 
+  nsfwToggle: function() {
+    if($("#nsfwToggle")[0].checked) {
+      $("img").css({
+       WebkitFilter: 'blur(0px)'
+     });
+    } else {
+      $("img").css({
+       WebkitFilter: 'blur(20px)'
+     });
+    }
+  },
+
+  postNewThread: function() {
+    var modalSubmit = $("#modalSubmit");
+    var imageUpload = $("#imageUpload");
+    var messageText = $("#messageText");
+    var previewContainer = $("#previewContainer");
+    imageUpload.on("change",function(){
+      $.LoadingOverlay("show");
+      const reader = new FileReader();
+      reader.readAsArrayBuffer(imageUpload[0].files[0]);
+      reader.onloadend = function() {
+          const buf = buffer.Buffer(reader.result)
+          App.ipfs.files.add(buf, (err, result) => {
+            previewContainer.attr("src", "https://" + App.ipfsProvider + "/ipfs/" + result[0].hash);
+            $.LoadingOverlay("hide");
+            modalSubmit.click(function(){
+                App.createThread(messageText, result[0].hash);
+            });
+          });
+        }
+    });
+  },
+
+  createThread: function(text, ipfshash) {
+    App.contracts.ChanChain.deployed().then(function(instance){
+      instance.createThread(text.val(), ipfshash, {value: 1000, from: App.account}).then(res => {
+        $('#Modal').modal('hide');
+      });
+    });
+  },
+
   pushToThreads: function(threadObj) {
     for(var i = 0; i < App.lastActiveThreads.length; i++)
         if(App.lastActiveThreads[i].threadId == threadObj.threadId) return;
@@ -118,7 +160,6 @@ App = {
             return;
           }
         }
-        console.log("Adding reply to thread: " + replyObj.threadId + " :: " + replyObj.reply);
         App.lastActiveThreads[i].replies.push(replyObj.reply);
       }
     }
@@ -153,10 +194,6 @@ App = {
     });
   },
 
-  fetchReply: function(){
-
-  },
-
   displayThreadCards: function(text, ipfshash, timestamp, threadId) {
     if(ipfshash == "") {
       ipfshash = "QmdrA4mUBg6bKnhhkTXBkbpEfEeqwTZLdBwi11Hx9Q5VhF";
@@ -164,9 +201,12 @@ App = {
     var imgsrc = "https://" + App.ipfsProvider + "/ipfs/" + ipfshash;
     var contentRow = $('#contentRow');
     var cardTemplate = $('#cardTemplate');
-    var shortText = $.trim(text).substring(0, 150).split(" ").slice(0, -1).join(" ") + " .....";
+    if($.trim(text).substring(0, 150).split(" ").length > 1 && $.trim(text).substring(0, 150).split(" ").length > 150){
+        var shortText = $.trim(text).substring(0, 150).split(" ").slice(0, -1).join(" ") + " .....";
+    }  else {
+      var shortText = $.trim(text);
+    }
     var datePosted = new Date(timestamp * 1000);
-    // var id = contentRow.find('.card').length + 1;
     cardTemplate.find('.card-text').text(shortText);
     cardTemplate.find('.card-img-top').attr('src', imgsrc);
     cardTemplate.find('.card-header').text(datePosted.toLocaleString());
@@ -209,14 +249,12 @@ App = {
     return threadTemplate.html();
   },
 
-  // Listen for events raised from the contract
   listenToEvents: function() {
     App.contracts.ChanChain.deployed().then(function(instance) {
       instance.newThreadEvent().watch(function(error, event) {
         console.log("NewThreadEvent received: " + event);
         App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
         App.reloadAll();
-        // App.fetchThreadCards(event.args.threadId.toNumber());
       });
 
       instance.newReplyEvent().watch(function(error, event) {
@@ -232,5 +270,8 @@ App = {
 $(function() {
   $(window).ready(function() {
     App.init();
+    $("#nsfwToggle").on('change', function(){
+        App.nsfwToggle();
+    });
   });
 });
