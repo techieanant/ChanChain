@@ -6,6 +6,12 @@ App = {
   account: 0x0,
   lastActiveThreads: [],
   loading: false,
+  modalSubmit: $("#modalSubmit"),
+  imageUpload:  $("#imageUpload"),
+  messageText: $("#messageText"),
+  previewContainer: $("#previewContainer"),
+  lastEventRecorded: [],
+  contractInstance: null,
 
   init: function() {
     App.nsfwToggle();
@@ -19,16 +25,17 @@ App = {
   initWeb3: function() {
     if (typeof web3 !== 'undefined') {
       App.web3Provider = web3.currentProvider;
-      web3 = new Web3(web3.currentProvider);
     } else {
       App.web3Provider = new Web3.providers.HttpProvider('http://localhost:9545');
-      web3 = new Web3(App.web3Provider);
     }
+    web3 = new Web3(App.web3Provider);
 
     if(web3.eth.accounts.length > 0) {
       $("#alertRow").addClass("d-none");
     } else {
       $("#alertRow").removeClass("d-none");
+      $("#createThread").addClass("d-none");
+      $("#postReply").addClass("d-none");
     }
 
     App.displayAccountInfo();
@@ -52,66 +59,68 @@ App = {
 
   },
 
-  initContract: function() {
-    $.getJSON('./build/contracts/ChanChain.json', function(artifact) {
+  initContract: async function() {
+    await $.getJSON('./build/contracts/ChanChain.json', function(artifact) {
       // Get the necessary contract artifact file and use it to instantiate a truffle contract abstraction.
       App.contracts.ChanChain = TruffleContract(artifact);
 
       // Set the provider for our contract.
       App.contracts.ChanChain.setProvider(App.web3Provider);
 
-      // Listen for events
-      App.getLastActiveThreads();
-
       // console.log(artifact);
       // Retrieve the article from the smart contract
       // return App.reloadArticles();
     });
+    App.contractInstance = await App.contracts.ChanChain.deployed();
+    await App.getLastActiveThreads();
+    await App.listenToEvents();
   },
 
-  getLastActiveThreads: function(){
-    App.contracts.ChanChain.deployed().then(instance => {
-      instance.indexLastThreads.call().then(id => {
-        var indexLastThreads = id.toNumber();
-        for(var i = 0; i < 32; i++) {
-          instance.lastThreads.call(i).then(response => {
-            var threadId = response.toNumber();
-            if(threadId != 0) {
-              instance.threads(threadId).then(response => {
-                App.pushToThreads(App.createThreadObject(threadId,response[0],response[1],response[4]));
-              });
-            }
-          });
-          indexLastThreads = (indexLastThreads + 1) % 32;
-        }
-      }).then(() => {
-        instance.indexReplies.call().then(response => {
-          var replyIndex = [];
-          for(var i = 1; i < response.toNumber(); i++) {
-            replyIndex.push(i);
-          }
-          $.each(replyIndex, function( index, value ) {
-            instance.replies(value).then(response => {
-            App.pushToReplies(response[2], App.createReplyObject(value, response[2], response[0], response[1], response[4]));
-            });
-          });
-        });
-      }).then(() => {
-        App.listenToEvents();
+  getLastActiveThreads: async function(){
+    var indexLastThreads = await App.contractInstance.indexLastThreads.call().then(res => {return res.toNumber();});
+    if(indexLastThreads == 32) {
+      indexLastThreads = (indexLastThreads + 1) % 32;
+    }
+    for(var i = 0; i < indexLastThreads; i++) {
+      var threadId = await App.contractInstance.lastThreads.call(i).then(res => {return res.toNumber();});
+      var threadObj = await App.contractInstance.threads(threadId).then(response => {
+        return App.createThreadObject(threadId,response[0],response[1],response[4]);
       });
-    });
+      App.pushToThreads(threadObj);
+    }
+    var indexReplies = await App.contractInstance.indexReplies.call().then(res => {return res.toNumber();});
+    for(var i = 1; i < indexReplies; i++) {
+      var replyId = i;
+      var replyObj = await App.contractInstance.replies(i).then(response => {
+        return App.createReplyObject(replyId, response[2].toNumber(), response[0], response[1], response[4]);
+      });
+      App.pushToReplies(threadId ,replyObj, replyId);
+      replyId =+ replyId;
+    }
   },
 
   nsfwToggle: function() {
-    if($("#nsfwToggle")[0].checked) {
-      $("img").css({
+    $("#nsfwToggle").change(function(){
+      sessionStorage.setItem("showNsfw", $("#nsfwToggle").is(":checked"));
+    });
+    if(sessionStorage.getItem("showNsfw") == "true") {
+     $("img").css({
        WebkitFilter: 'blur(0px)'
      });
-    } else {
-      $("img").css({
-       WebkitFilter: 'blur(20px)'
-     });
-    }
+     $("#nsfwToggle").prop("checked", true);
+   } else {
+    $("img").css({
+      WebkitFilter: 'blur(20px)'
+    });
+   }
+
+  },
+
+  clearModalData() {
+    App.imageUpload.val('');
+    App.messageText.val('');
+    App.previewContainer.attr("src", "");
+    App.modalSubmit.off('click');
   },
 
   postNewThread: function() {
@@ -119,50 +128,113 @@ App = {
     var imageUpload = $("#imageUpload");
     var messageText = $("#messageText");
     var previewContainer = $("#previewContainer");
+    var hash = null;
+    App.clearModalData();
     imageUpload.on("change",function(){
-      $.LoadingOverlay("show");
-      const reader = new FileReader();
-      reader.readAsArrayBuffer(imageUpload[0].files[0]);
-      reader.onloadend = function() {
-          const buf = buffer.Buffer(reader.result)
-          App.ipfs.files.add(buf, (err, result) => {
-            previewContainer.attr("src", "https://" + App.ipfsProvider + "/ipfs/" + result[0].hash);
-            $.LoadingOverlay("hide");
-            modalSubmit.click(function(){
-                App.createThread(messageText, result[0].hash);
+      if(imageUpload[0].files.length != 0) {
+        $.LoadingOverlay("show");
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(imageUpload[0].files[0]);
+        reader.onloadend = function() {
+            var buf = buffer.Buffer(reader.result)
+            App.ipfs.files.add(buf, (err, result) => {
+              previewContainer.attr("src", "https://" + App.ipfsProvider + "/ipfs/" + result[0].hash);
+              hash = result[0].hash;
+              $.LoadingOverlay("hide");
             });
-          });
+          }
+      }
+    });
+    modalSubmit.click(function(){
+        if(hash != null) {
+            App.createThread(messageText, hash);
+        } else {
+          App.createThread(messageText, "");
         }
     });
   },
 
+  replyToThread: function(threadId) {
+    var modalSubmit = $("#modalSubmit");
+    var imageUpload = $("#imageUpload");
+    var messageText = $("#messageText");
+    var previewContainer = $("#previewContainer");
+    var hash = null;
+    App.clearModalData();
+    imageUpload.on("change",function(){
+    if(imageUpload[0].files.length != 0) {
+      $.LoadingOverlay("show");
+      const reader = new FileReader();
+      reader.readAsArrayBuffer(imageUpload[0].files[0]);
+      reader.onloadend = function() {
+          var buf = buffer.Buffer(reader.result)
+          App.ipfs.files.add(buf, (err, result) => {
+            previewContainer.attr("src", "https://" + App.ipfsProvider + "/ipfs/" + result[0].hash);
+            hash = result[0].hash;
+            $.LoadingOverlay("hide");
+            modalSubmit.click(function(){
+                App.replyThread(threadId, messageText, result[0].hash);
+            });
+          });
+        }
+      }
+    });
+    modalSubmit.click(function(){
+        if(hash != null) {
+          App.replyThread(threadId, messageText, hash);
+        } else {
+          App.replyThread(threadId, messageText, "");
+        }
+    });
+  },
+
+  replyThread: function(replyTo, text, ipfshash) {
+    App.contractInstance.replyThread(replyTo, text.val(), ipfshash, {value: 100, from: App.account}).then(res => {
+      $('#Modal').modal('hide');
+    });
+  },
+
   createThread: function(text, ipfshash) {
-    App.contracts.ChanChain.deployed().then(function(instance){
-      instance.createThread(text.val(), ipfshash, {value: 1000, from: App.account}).then(res => {
-        $('#Modal').modal('hide');
-      });
+    App.contractInstance.createThread(text.val(), ipfshash, {value: 1000, from: App.account}).then(res => {
+      $('#Modal').modal('hide');
     });
   },
 
   pushToThreads: function(threadObj) {
-    for(var i = 0; i < App.lastActiveThreads.length; i++)
+    for(var i = 0; i < App.lastActiveThreads.length; i++) {
         if(App.lastActiveThreads[i].threadId == threadObj.threadId) return;
-    App.lastActiveThreads.push(threadObj);
-    if(App.lastActiveThreads.length > 32)
-      App.lastActiveThreads.shift();
+    }
+    App.lastActiveThreads.unshift(threadObj);
+    if(App.lastActiveThreads.length > 32) {
+      App.lastActiveThreads.pop();
+    }
+    App.reloadAllCards();
   },
 
-  pushToReplies: function(threadId, replyObj) {
+  array_move: function (arr, old_index, new_index) {
+    if (new_index >= arr.length) {
+        var k = new_index - arr.length + 1;
+        while (k--) {
+            arr.push(undefined);
+        }
+    }
+    arr.splice(new_index, 0, arr.splice(old_index, 1)[0]);
+    return arr;
+},
+
+  pushToReplies: function(threadId, replyObj, replyId) {
     for(var i = 0; i < App.lastActiveThreads.length; i++) {
-      if(App.lastActiveThreads[i].threadId == replyObj.threadId.toNumber()) {
+      if(App.lastActiveThreads[i].threadId == replyObj.threadId) {
         for(var j = 0; j < App.lastActiveThreads[i].replies.length; j++) {
           if(App.lastActiveThreads[i].replies[j].replyId == replyObj.reply.replyId) {
+            App.array_move(App.lastActiveThreads, App.lastActiveThreads.indexOf(App.lastActiveThreads[i]), 0);
             return;
           }
         }
         App.lastActiveThreads[i].replies.push(replyObj.reply);
       }
     }
+    App.reloadThreadPage(replyObj.threadId);
   },
 
   createThreadObject: function(id, text, ipfshash, timestamp) {
@@ -187,11 +259,16 @@ App = {
     }
   },
 
-  reloadAll: function(){
+  reloadAllCards: function(i){
     $('#contentRow').empty();
     $.each(App.lastActiveThreads, function(key, thread){
       App.displayThreadCards(thread.text, thread.ipfshash, thread.timestamp.toNumber(), thread.threadId);
     });
+  },
+
+  reloadThreadPage: function(threadId) {
+    $('#contentRow').empty();
+    App.displayThreadPage(threadId);
   },
 
   displayThreadCards: function(text, ipfshash, timestamp, threadId) {
@@ -201,7 +278,7 @@ App = {
     var imgsrc = "https://" + App.ipfsProvider + "/ipfs/" + ipfshash;
     var contentRow = $('#contentRow');
     var cardTemplate = $('#cardTemplate');
-    if($.trim(text).substring(0, 150).split(" ").length > 1 && $.trim(text).substring(0, 150).split(" ").length > 150){
+    if($.trim(text).substring(0, 150).split(" ").length > 1 && $.trim(text).substring(0, 150).split(" ").length < 150){
         var shortText = $.trim(text).substring(0, 150).split(" ").slice(0, -1).join(" ") + " .....";
     }  else {
       var shortText = $.trim(text);
@@ -217,6 +294,9 @@ App = {
   },
 
   displayThreadPage: function(threadId) {
+    $("#createThread").addClass("d-none");
+    $("#postReply").removeClass("d-none");
+    $("#postReply").attr('onclick', 'App.replyToThread(' + threadId + ')');
     $.each(App.lastActiveThreads, function(key, thread){
       if(App.lastActiveThreads[key].threadId == threadId) {
         var threadTemplate = App.createThreadPage(thread.text, thread.ipfshash, thread.timestamp, thread.threadId);
@@ -226,8 +306,7 @@ App = {
         $('#backToHome').removeClass('d-none');
         if(thread.replies.length > 0) {
           $.each(thread.replies, function(key, reply){
-            var replyTemplate = App.createThreadPage(reply.text, reply.ipfshash, reply.timestamp, reply.replyId);
-            contentRow.append(replyTemplate);
+            contentRow.append(App.createThreadPage(reply.text, reply.ipfshash, reply.timestamp, reply.replyId));
           });
         }
       }
@@ -250,22 +329,18 @@ App = {
   },
 
   listenToEvents: function() {
-    App.contracts.ChanChain.deployed().then(function(instance) {
-      instance.newThreadEvent().watch(function(error, event) {
-        console.log("NewThreadEvent received: " + event);
-        App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
-        App.reloadAll();
-      });
-
-      instance.newReplyEvent().watch(function(error, event) {
-        console.log("newReplyEvent received: " + event);
-        App.pushToReplies(event.args.replyTo.toNumber(), App.createReplyObject(event.args.replyId.toNumber(), event.args.replyTo, event.args.text, event.args.ipfsHash, event.args.timestamp));
-        App.reloadAll();
-      });
+    App.contractInstance.newThreadEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
+      console.log("NewThreadEvent received: " + event);
+      App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
     });
-  },
 
+    App.contractInstance.newReplyEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
+      console.log("newReplyEvent received: " + event);
+      App.pushToReplies(event.args.replyTo.toNumber(), App.createReplyObject(event.args.replyId.toNumber(), event.args.replyTo, event.args.text, event.args.ipfsHash, event.args.timestamp), event.args.replyId.toNumber());
+    });
+  }
 };
+
 
 $(function() {
   $(window).ready(function() {
