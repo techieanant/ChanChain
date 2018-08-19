@@ -2,6 +2,10 @@ body {
   color: #fff;
 }
 
+.logo {
+  filter: none !important;
+}
+
 .alert {
   color: blue;
 }
@@ -103,7 +107,7 @@ hr {
 }
 
 .previewContainer {
-  display: block;
+    display: block;
     filter: none !important;
     max-width: 16rem;
     max-height: 16rem;
