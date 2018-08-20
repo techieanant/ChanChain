@@ -66,9 +66,15 @@ App = {
       App.contracts.ChanChain.setProvider(App.web3Provider);
     });
     App.contractInstance = await App.contracts.ChanChain.deployed();
-    await App.getLastActiveThreads();
-    await App.listenToEvents();
-    await App.checkIfPaused();
+    try {
+      await App.getLastActiveThreads();
+      await App.listenToEvents();
+      await App.checkIfPaused();
+    } catch {
+      $("#alertMessage").text("Cannot fetch contract data, please check your network and reload the page!");
+      $("#alertRow").removeClass("d-none");
+    }
+
   },
 
   checkIfPaused: function() {
@@ -134,11 +140,12 @@ App = {
     imageUpload.on("change",function(){
       if(imageUpload[0].files.length != 0) {
         $.LoadingOverlay("show");
-        const reader = new FileReader();
+        let reader = new FileReader();
         reader.readAsArrayBuffer(imageUpload[0].files[0]);
         reader.onloadend = function() {
-            var buf = buffer.Buffer(reader.result)
+            var buf = buffer.Buffer(reader.result);
             App.ipfs.files.add(buf, (err, result) => {
+              console.log(result);
               previewContainer.attr("src", "https://" + App.ipfsProvider + "/ipfs/" + result[0].hash);
               hash = result[0].hash;
               $.LoadingOverlay("hide");
