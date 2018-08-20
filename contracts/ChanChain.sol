@@ -9,7 +9,7 @@ contract ChanChain {
 	address private owner;
 
 	//Circuit Breaker for pausing the contract
-	bool private isPaused = false;
+	bool public isPaused = false;
 
 	// Owner can set fees
 	uint256 public feeNewThread;
@@ -53,7 +53,7 @@ contract ChanChain {
 	//
 	// Events
 	//
-
+	
 	event newThreadEvent(uint256 threadId, string text, string ipfsHash, uint256 timestamp);
 	event newReplyEvent(uint256 replyId, uint256 replyTo, string text, string ipfsHash, uint256 timestamp);
 

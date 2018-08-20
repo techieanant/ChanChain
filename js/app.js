@@ -33,6 +33,7 @@ App = {
     if(web3.eth.accounts.length > 0) {
       $("#alertRow").addClass("d-none");
     } else {
+      $("#alertMessage").text("Please install or unlock Metamask to interact with this application and reload the page.");
       $("#alertRow").removeClass("d-none");
       $("#createThread").addClass("d-none");
       $("#postReply").addClass("d-none");
@@ -61,19 +62,19 @@ App = {
 
   initContract: async function() {
     await $.getJSON('./build/contracts/ChanChain.json', function(artifact) {
-      // Get the necessary contract artifact file and use it to instantiate a truffle contract abstraction.
       App.contracts.ChanChain = TruffleContract(artifact);
-
-      // Set the provider for our contract.
       App.contracts.ChanChain.setProvider(App.web3Provider);
-
-      // console.log(artifact);
-      // Retrieve the article from the smart contract
-      // return App.reloadArticles();
     });
     App.contractInstance = await App.contracts.ChanChain.deployed();
     await App.getLastActiveThreads();
     await App.listenToEvents();
+    await App.checkIfPaused();
+  },
+
+  checkIfPaused: function() {
+    return App.contractInstance.isPaused.call().then(res => {
+      return res;
+    });
   },
 
   getLastActiveThreads: async function(){
@@ -145,12 +146,14 @@ App = {
           }
       }
     });
-    modalSubmit.click(function(){
+    modalSubmit.click(function(e){
         if(hash != null) {
             App.createThread(messageText, hash);
         } else {
           App.createThread(messageText, "");
         }
+        e.stopPropagation();
+        e.preventDefault();
     });
   },
 
@@ -172,32 +175,45 @@ App = {
             previewContainer.attr("src", "https://" + App.ipfsProvider + "/ipfs/" + result[0].hash);
             hash = result[0].hash;
             $.LoadingOverlay("hide");
-            modalSubmit.click(function(){
-                App.replyThread(threadId, messageText, result[0].hash);
-            });
           });
         }
       }
     });
-    modalSubmit.click(function(){
+    modalSubmit.click(function(e){
         if(hash != null) {
           App.replyThread(threadId, messageText, hash);
         } else {
           App.replyThread(threadId, messageText, "");
         }
+        e.stopPropagation();
+        e.preventDefault();
     });
   },
 
-  replyThread: function(replyTo, text, ipfshash) {
-    App.contractInstance.replyThread(replyTo, text.val(), ipfshash, {value: 100, from: App.account}).then(res => {
+  replyThread: async function(replyTo, text, ipfshash) {
+    if(await App.checkIfPaused()) {
+      $("#alertMessage").text("This DApp is Paused, please contact the administrator to enable it again.");
+      $("#alertRow").removeClass("d-none");
       $('#Modal').modal('hide');
-    });
+      setTimeout(function(){ $("#alertRow").addClass("d-none"); }, 8000);
+    } else {
+      App.contractInstance.replyThread(replyTo, text.val(), ipfshash, {value: 100, from: App.account}).then(res => {
+        $('#Modal').modal('hide');
+      });
+    }
   },
 
-  createThread: function(text, ipfshash) {
-    App.contractInstance.createThread(text.val(), ipfshash, {value: 1000, from: App.account}).then(res => {
+  createThread: async function(text, ipfshash) {
+    if(await App.checkIfPaused()) {
+      $("#alertMessage").text("This DApp is Paused, please contact the administrator to enable it again.");
+      $("#alertRow").removeClass("d-none");
       $('#Modal').modal('hide');
-    });
+      setTimeout(function(){ $("#alertRow").addClass("d-none"); }, 8000);
+    } else {
+      App.contractInstance.createThread(text.val(), ipfshash, {value: 1000, from: App.account}).then(res => {
+        $('#Modal').modal('hide');
+      });
+    }
   },
 
   pushToThreads: function(threadObj) {
@@ -234,7 +250,6 @@ App = {
         App.lastActiveThreads[i].replies.push(replyObj.reply);
       }
     }
-    App.reloadThreadPage(replyObj.threadId);
   },
 
   createThreadObject: function(id, text, ipfshash, timestamp) {
@@ -259,7 +274,7 @@ App = {
     }
   },
 
-  reloadAllCards: function(i){
+  reloadAllCards: function(){
     $('#contentRow').empty();
     $.each(App.lastActiveThreads, function(key, thread){
       App.displayThreadCards(thread.text, thread.ipfshash, thread.timestamp.toNumber(), thread.threadId);
@@ -286,7 +301,7 @@ App = {
     var datePosted = new Date(timestamp * 1000);
     cardTemplate.find('.card-text').text(shortText);
     cardTemplate.find('.card-img-top').attr('src', imgsrc);
-    cardTemplate.find('.card-header').text(datePosted.toLocaleString());
+    cardTemplate.find('.card-header').text("Posted : " + datePosted.toLocaleString());
     cardTemplate.find('.card').attr('id', threadId);
     cardTemplate.find('.card').removeClass('d-none');
     cardTemplate.find('.card').attr('onclick', 'App.displayThreadPage(' + threadId + ')');
@@ -321,22 +336,30 @@ App = {
     var threadTemplate = $('#threadTemplate');
     var datePosted = new Date(timestamp.toNumber() * 1000);
     threadTemplate.find('#threadPostImg').attr('src', ipfsURL);
+    threadTemplate.find('#threadPostImg').attr('onclick', 'App.openImage(' + '"' + ipfshash + '"' + ')');
     threadTemplate.find('#threadPostText').text(text);
-    threadTemplate.find('#threadPostTimestamp').text(datePosted.toLocaleString());
+    threadTemplate.find('#threadPostTimestamp').text("Posted : " + datePosted.toLocaleString());
     threadTemplate.find('.threadPost').attr('id', threadId);
     threadTemplate.find('.threadPost').removeClass('d-none');
     return threadTemplate.html();
   },
 
+  openImage: function (ipfshash) {
+    var ipfsURL = "https://" + App.ipfsProvider + "/ipfs/" + ipfshash;
+    window.open(ipfsURL, '_blank');
+  },
+
   listenToEvents: function() {
-    App.contractInstance.newThreadEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
+    App.contractInstance.newThreadEvent({fromBlock: 'latest'}).watch(function(error, event) {
       console.log("NewThreadEvent received: " + event);
       App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
     });
 
-    App.contractInstance.newReplyEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
+
+    App.contractInstance.newReplyEvent({fromBlock: 'latest'}).watch(function(error, event) {
       console.log("newReplyEvent received: " + event);
       App.pushToReplies(event.args.replyTo.toNumber(), App.createReplyObject(event.args.replyId.toNumber(), event.args.replyTo, event.args.text, event.args.ipfsHash, event.args.timestamp), event.args.replyId.toNumber());
+      App.reloadThreadPage(event.args.replyTo.toNumber());
     });
   }
 };

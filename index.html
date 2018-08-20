@@ -18,7 +18,7 @@
     <div class="col-12 col-md-12 container-fluid">
       <div class="alert alert-danger" role="alert">
         <i class="fa fa-fw fa-exclamation-circle mr-3 align-self-center"></i>
-        <strong id="alertMessage">Please install or unlock Metamask to interact with this application and reload the page.</strong>
+        <strong id="alertMessage"></strong>
       </div>
     </div>
   </div>
@@ -62,7 +62,7 @@
       <div class="container-fluid">
         <div style="margin-bottom: 20px;">
           <button id="createThread" data-toggle="modal" data-target="#Modal" onclick="App.postNewThread()" class="btn btn-primary btn-lg">Create Thread</button>
-          <button id="backToHome" class="btn btn-primary btn-lg d-none" onclick="App.reloadAllCards(); $('#backToHome').addClass('d-none'); $('#postReply').addClass('d-none'); $('#createThread').removeClass('d-none');">Go Back</button>
+          <button id="backToHome" class="btn btn-primary btn-lg d-none" onclick="location.reload(); $('#backToHome').addClass('d-none'); $('#postReply').addClass('d-none'); $('#createThread').removeClass('d-none');">Go Back</button>
           <button id="postReply" data-toggle="modal" data-target="#Modal" onclick="" class="btn btn-primary btn-lg d-none">Post Reply</button>
         </div>
       </div>
@@ -83,7 +83,7 @@
   <div id="cardTemplate" class="d-none">
     <div class="card d-none" style="width: 18rem; max-height: 34rem;">
       <div class="card-header">
-        Aug 20 2018 9:16 PM
+
       </div>
       <img class="card-img-top" src="" alt="Card image cap">
       <div class="card-body">
@@ -118,7 +118,7 @@
     <div class="modal-dialog modal-dialog-centered" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="submitModal">Submit New Thread</h5>
+          <h5 class="modal-title" id="submitModal">Submit</h5>
           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
