@@ -22,19 +22,19 @@ App = {
     App.ipfs = window.IpfsApi(App.ipfsProvider, '5001', {protocol: 'https'});
   },
 
-  initWeb3: function() {
+  initWeb3: async function() {
     if (typeof web3 !== 'undefined') {
       App.web3Provider = web3.currentProvider;
     } else {
       App.web3Provider = new Web3.providers.HttpProvider('http://localhost:9545');
     }
+
     web3 = new Web3(App.web3Provider);
 
     if(web3.eth.accounts.length > 0) {
       $("#alertRow").addClass("d-none");
     } else {
-      $("#alertMessage").text("Please install or unlock Metamask to interact with this application and reload the page.");
-      $("#alertRow").removeClass("d-none");
+      App.notifyUser("Please install or unlock Metamask to interact with this application and reload the page.");
       $("#createThread").addClass("d-none");
       $("#postReply").addClass("d-none");
     }
@@ -68,11 +68,9 @@ App = {
     App.contractInstance = await App.contracts.ChanChain.deployed();
     try {
       await App.getLastActiveThreads();
-      await App.listenToEvents();
       await App.checkIfPaused();
     } catch {
-      $("#alertMessage").text("Cannot fetch contract data, please check your network and reload the page!");
-      $("#alertRow").removeClass("d-none");
+      App.notifyUser("Cannot fetch contract data, please check your network and reload the page!");
     }
 
   },
@@ -81,6 +79,11 @@ App = {
     return App.contractInstance.isPaused.call().then(res => {
       return res;
     });
+  },
+  notifyUser: function(text) {
+    $("#alertMessage").text(text);
+    $("#alertRow").removeClass("d-none");
+    setTimeout(function(){ $("#alertRow").addClass("d-none"); }, 8000);
   },
 
   getLastActiveThreads: async function(){
@@ -105,6 +108,7 @@ App = {
       replyId =+ replyId;
     }
     App.reloadAllCards();
+    await App.listenToEvents();
   },
 
   nsfwToggle: function() {
@@ -199,28 +203,22 @@ App = {
   },
 
   replyThread: async function(replyTo, text, ipfshash) {
+    $('#Modal').modal('hide');
     if(await App.checkIfPaused()) {
-      $("#alertMessage").text("This DApp is Paused, please contact the administrator to enable it again.");
-      $("#alertRow").removeClass("d-none");
-      $('#Modal').modal('hide');
-      setTimeout(function(){ $("#alertRow").addClass("d-none"); }, 8000);
+      App.notifyUser("This DApp is Paused, please contact the administrator to enable it again.");
     } else {
-      App.contractInstance.replyThread(replyTo, text.val(), ipfshash, {value: 100, from: App.account}).then(res => {
-        $('#Modal').modal('hide');
-      });
+      App.notifyUser("Transaction submitted; Waiting for the transaction to be mined");
+      App.contractInstance.replyThread(replyTo, text.val(), ipfshash, {value: 100, from: App.account}).then(res => {});
     }
   },
 
   createThread: async function(text, ipfshash) {
+    $('#Modal').modal('hide');
     if(await App.checkIfPaused()) {
-      $("#alertMessage").text("This DApp is Paused, please contact the administrator to enable it again.");
-      $("#alertRow").removeClass("d-none");
-      $('#Modal').modal('hide');
-      setTimeout(function(){ $("#alertRow").addClass("d-none"); }, 8000);
+      App.notifyUser("This DApp is Paused, please contact the administrator to enable it again.");
     } else {
-      App.contractInstance.createThread(text.val(), ipfshash, {value: 1000, from: App.account}).then(res => {
-        $('#Modal').modal('hide');
-      });
+      App.notifyUser("Transaction submitted; Waiting for the transaction to be mined");
+      App.contractInstance.createThread(text.val(), ipfshash, {value: 1000, from: App.account}).then(res =>{});
     }
   },
 
@@ -357,15 +355,13 @@ App = {
   },
 
   listenToEvents: function() {
-    App.contractInstance.newThreadEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
-      console.log("NewThreadEvent received: " + event);
+    App.contractInstance.newThreadEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {      
       App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
       App.reloadAllCards();
     });
 
 
     App.contractInstance.newReplyEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
-      console.log("newReplyEvent received: " + event);
       App.pushToReplies(event.args.replyTo.toNumber(), App.createReplyObject(event.args.replyId.toNumber(), event.args.replyTo, event.args.text, event.args.ipfsHash, event.args.timestamp), event.args.replyId.toNumber());
       App.reloadThreadPage(event.args.replyTo.toNumber());
     });
