@@ -93,7 +93,7 @@ App = {
       var threadObj = await App.contractInstance.threads(threadId).then(response => {
         return App.createThreadObject(threadId,response[0],response[1],response[4]);
       });
-      App.pushToThreads(threadObj);
+      await App.pushToThreads(threadObj);
     }
     var indexReplies = await App.contractInstance.indexReplies.call().then(res => {return res.toNumber();});
     for(var i = 1; i < indexReplies; i++) {
@@ -101,9 +101,10 @@ App = {
       var replyObj = await App.contractInstance.replies(i).then(response => {
         return App.createReplyObject(replyId, response[2].toNumber(), response[0], response[1], response[4]);
       });
-      App.pushToReplies(threadId ,replyObj, replyId);
+      await App.pushToReplies(threadId ,replyObj, replyId);
       replyId =+ replyId;
     }
+    App.reloadAllCards();
   },
 
   nsfwToggle: function() {
@@ -231,7 +232,6 @@ App = {
     if(App.lastActiveThreads.length > 32) {
       App.lastActiveThreads.pop();
     }
-    App.reloadAllCards();
   },
 
   array_move: function (arr, old_index, new_index) {
@@ -250,11 +250,11 @@ App = {
       if(App.lastActiveThreads[i].threadId == replyObj.threadId) {
         for(var j = 0; j < App.lastActiveThreads[i].replies.length; j++) {
           if(App.lastActiveThreads[i].replies[j].replyId == replyObj.reply.replyId) {
-            App.array_move(App.lastActiveThreads, App.lastActiveThreads.indexOf(App.lastActiveThreads[i]), 0);
             return;
           }
         }
         App.lastActiveThreads[i].replies.push(replyObj.reply);
+        App.array_move(App.lastActiveThreads, App.lastActiveThreads.indexOf(App.lastActiveThreads[i]), 0);
       }
     }
   },
@@ -357,13 +357,14 @@ App = {
   },
 
   listenToEvents: function() {
-    App.contractInstance.newThreadEvent({fromBlock: 'latest'}).watch(function(error, event) {
+    App.contractInstance.newThreadEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
       console.log("NewThreadEvent received: " + event);
       App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
+      App.reloadAllCards();
     });
 
 
-    App.contractInstance.newReplyEvent({fromBlock: 'latest'}).watch(function(error, event) {
+    App.contractInstance.newReplyEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
       console.log("newReplyEvent received: " + event);
       App.pushToReplies(event.args.replyTo.toNumber(), App.createReplyObject(event.args.replyId.toNumber(), event.args.replyTo, event.args.text, event.args.ipfsHash, event.args.timestamp), event.args.replyId.toNumber());
       App.reloadThreadPage(event.args.replyTo.toNumber());

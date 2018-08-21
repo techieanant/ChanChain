@@ -62,7 +62,7 @@
       <div class="container-fluid">
         <div style="margin-bottom: 20px;">
           <button id="createThread" data-toggle="modal" data-target="#Modal" onclick="App.postNewThread()" class="btn btn-primary btn-lg">Create Thread</button>
-          <button id="backToHome" class="btn btn-primary btn-lg d-none" onclick="location.reload(); $('#backToHome').addClass('d-none'); $('#postReply').addClass('d-none'); $('#createThread').removeClass('d-none');">Go Back</button>
+          <button id="backToHome" class="btn btn-primary btn-lg d-none" onclick="App.reloadAllCards(); $('#backToHome').addClass('d-none'); $('#postReply').addClass('d-none'); $('#createThread').removeClass('d-none');">Go Back</button>
           <button id="postReply" data-toggle="modal" data-target="#Modal" onclick="" class="btn btn-primary btn-lg d-none">Post Reply</button>
         </div>
       </div>
