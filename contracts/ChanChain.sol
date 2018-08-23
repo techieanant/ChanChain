@@ -53,7 +53,7 @@ contract ChanChain {
 	//
 	// Events
 	//
-	
+
 	event newThreadEvent(uint256 threadId, string text, string ipfsHash, uint256 timestamp);
 	event newReplyEvent(uint256 replyId, uint256 replyTo, string text, string ipfsHash, uint256 timestamp);
 
@@ -103,6 +103,12 @@ contract ChanChain {
 	    isPaused = !isPaused;
 	}
 
+	/// @notice Owner can kill the contract
+	/// @dev Owner can call this function to invoke self destruction and transfer the balance
+	function isKill() public onlyOwner{
+      selfdestruct(owner);
+	}
+
 /// @notice Owner can reset fee in the future
 /// @dev Sets feeNewThread and feeReplyThread
 /// @param _feeNewThread Fee required to create new thread (uint256), _feeReplyThread Fee required for replying to a thread (uint256)
@@ -115,7 +121,7 @@ contract ChanChain {
 /// @notice Owner can withdraw fee from contract
 /// @dev Transfers all ether in contract to owner
 /// @param _amount Amount to withdraw from contract (uint256)
-	function withdraw(uint256 _amount) public isHalted {
+	function withdraw(uint256 _amount) public onlyOwner isHalted {
 		owner.transfer(_amount);
 	}
 
