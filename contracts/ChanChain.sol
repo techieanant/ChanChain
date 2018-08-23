@@ -98,9 +98,13 @@ contract ChanChain {
 
 /// @notice Owner can pause the contract
 /// @dev Owner can call this function to toggle contract isPaused state
-	function toggleContractActive() onlyOwner public
+	function toggleContractActive()
+	onlyOwner
+	public
+	returns (bool)
 	{
 	    isPaused = !isPaused;
+			return isPaused;
 	}
 
 	/// @notice Owner can kill the contract
@@ -121,7 +125,11 @@ contract ChanChain {
 /// @notice Owner can withdraw fee from contract
 /// @dev Transfers all ether in contract to owner
 /// @param _amount Amount to withdraw from contract (uint256)
-	function withdraw(uint256 _amount) public onlyOwner isHalted {
+	function withdraw(uint256 _amount)
+	public
+	onlyOwner
+	isHalted	
+	{
 		owner.transfer(_amount);
 	}
 
