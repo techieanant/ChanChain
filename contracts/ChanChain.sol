@@ -89,7 +89,8 @@ contract ChanChain {
 	//
 
 /// @dev Set initial fee while deploying the contract
-/// @param _feeNewThread Fee required to create new thread (uint256), _feeReplyThread Fee required for replying to a thread (uint256)
+/// @param _feeNewThread Fee required to create new thread (uint256)
+/// @param _feeReplyThread Fee required for replying to a thread (uint256)
 	constructor(uint256 _feeNewThread, uint256 _feeReplyThread) public {
 		owner = msg.sender;
 		feeNewThread = _feeNewThread;
@@ -101,7 +102,7 @@ contract ChanChain {
 	function toggleContractActive()
 	onlyOwner
 	public
-	returns (bool)
+	returns(bool)
 	{
 	    isPaused = !isPaused;
 			return isPaused;
@@ -115,7 +116,8 @@ contract ChanChain {
 
 /// @notice Owner can reset fee in the future
 /// @dev Sets feeNewThread and feeReplyThread
-/// @param _feeNewThread Fee required to create new thread (uint256), _feeReplyThread Fee required for replying to a thread (uint256)
+/// @param _feeNewThread Fee required to create new thread (uint256)
+/// @param  _feeReplyThread Fee required for replying to a thread (uint256)
 	function setFees(uint256 _feeNewThread, uint256 _feeReplyThread) public onlyOwner {
 		feeNewThread = _feeNewThread;
 		feeReplyThread = _feeReplyThread;
@@ -128,7 +130,7 @@ contract ChanChain {
 	function withdraw(uint256 _amount)
 	public
 	onlyOwner
-	isHalted	
+	isHalted
 	{
 		owner.transfer(_amount);
 	}
@@ -136,7 +138,8 @@ contract ChanChain {
 	// Create a Thread
 /// @notice Create a new thread if the fees is paid
 /// @dev Creates a new thread, updates last active thread index
-/// @param _text Text content for the thread post (string), _ipfsHash IPFS hash of image (string)
+/// @param _text Text content for the thread post (string)
+/// @param _ipfsHash IPFS hash of image (string)
 	function createThread(string _text, string _ipfsHash)
 	payable
 	public
@@ -157,7 +160,8 @@ contract ChanChain {
 	// Reply to a thread
 /// @notice Reply to a thread if the fees is paid
 /// @dev Replies to a thread after making sure it exists, updates last active thread index
-/// @param _replyTo Index of the thread associated with this reply, _text Text content for the thread post (string), _ipfsHash IPFS hash of image (string)
+/// @param _replyTo Index of the thread associated with this reply
+/// @param _text Text content for the thread post (string), _ipfsHash IPFS hash of image (string)
 	function replyThread(uint256 _replyTo, string _text, string _ipfsHash)
 	payable
 	public

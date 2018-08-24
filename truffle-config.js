@@ -12,9 +12,6 @@
  *   },
  */
 
- var HDWalletProvider = require("truffle-hdwallet-provider");
- var mnemonic = "volume praise begin genuine feel cousin update script essence expire elite desk";
-
  module.exports = {
    networks: {
      development: {
@@ -27,9 +24,7 @@
     },
     ropsten: {
       network_id: 3,
-      provider: function() {
-        return new HDWalletProvider(mnemonic, 'https://ropsten.infura.io/v3/eb41d8eca36649e1a68a61e3f233e55c')
-      },
+      provider: ""
     }
    }
  };
