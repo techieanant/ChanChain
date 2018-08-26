@@ -26,7 +26,7 @@
   <navbar class="navbar navbar-expand navbar-dark flex-column flex-md-row bd-navbar">
     <a class="navbar-brand" target="_blank" href="/img/logo.png">
       <img id="logo" class="d-inline-block align-top logo" height="50" width="50" src="img/logo.png" />
-      <h2 style="padding-top: 6px; display: inline-block;">ChanChain</h2>
+      <h2 style="padding-top: 6px; display: inline-block; font-weight: 800;">ChanChain</h2>
     </a>
     <ul class="navbar-nav ml-auto account">
       <li>
@@ -39,20 +39,33 @@
       </li>
     </ul>
   </navbar>
-  <section class="row">
-    <div class="col-12 col-md-12">
+  <section>
+    <div class="row justify-content-center">
+      <div class="col-6">
+        <div class="container-fluid">
+          <label class="badge badge-info">
+            FEE TO POST:&nbsp;<span id="feeNewThread"></span>&nbsp;Wei
+          </label>
+          &nbsp;
+          &nbsp;
+          <label class="badge badge-info">
+            FEE TO REPLY:&nbsp;<span id="feeReplyThread"></span>&nbsp;Wei
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="row justify-content-center">
+    <div class="col-8">
       <div class="container-fluid">
         <div class="bd-callout bd-callout-warning">
-          <p>The content on this imageboard is not moderated. Please toggle below to view images. </p>
+          <p>The content on this imageboard is <strong>NOT</strong> moderated. The images are blurred by default as they might be shocking and not safe for work. Please click the toggle below to view images.</p>
           <div class="form-inline">
             <label class="nsfwLabel">Toggle NSFW Filter</label>
             <label class="switch">
               <input id="nsfwToggle" type="checkbox">
               <span class="slider round"></span>
-            </label>
           </div>
-
-          <!-- <button id="enableImages" data-toggle="modal" data-target="#exampleModalCenter" class="btn btn-primary">Enable Images</button> -->
         </div>
       </div>
     </div>
@@ -62,7 +75,7 @@
       <div class="container-fluid">
         <div style="margin-bottom: 20px;">
           <button id="createThread" data-toggle="modal" data-target="#Modal" onclick="App.postNewThread()" class="btn btn-primary btn-lg">Create Thread</button>
-          <button id="backToHome" class="btn btn-primary btn-lg d-none" onclick="App.reloadAllCards(); $('#backToHome').addClass('d-none'); $('#postReply').addClass('d-none'); $('#createThread').removeClass('d-none');">Go Back</button>
+          <button id="backToHome" class="btn btn-primary btn-lg d-none" onclick="location.reload(); $('#backToHome').addClass('d-none'); $('#postReply').addClass('d-none'); $('#createThread').removeClass('d-none');">Go Back</button>
           <button id="postReply" data-toggle="modal" data-target="#Modal" onclick="" class="btn btn-primary btn-lg d-none">Post Reply</button>
         </div>
       </div>
@@ -82,6 +95,7 @@
   <!-- Card Temlates -->
   <div id="cardTemplate" class="d-none">
     <div class="card d-none" style="width: 18rem; max-height: 34rem;">
+      <div id="ribbon" class="ribbon d-none"><span>NEW</span></div>
       <div class="card-header">
 
       </div>

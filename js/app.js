@@ -67,12 +67,18 @@ App = {
     });
     App.contractInstance = await App.contracts.ChanChain.deployed();
     try {
+      await App.getCurrentFee();
       await App.getLastActiveThreads();
       await App.checkIfPaused();
     } catch {
       App.notifyUser("Cannot fetch contract data, please check your network and reload the page!");
     }
 
+  },
+
+  getCurrentFee: async function () {
+      $("#feeNewThread").text(await App.contractInstance.feeNewThread.call().then(res => {return res.toNumber()}));
+      $("#feeReplyThread").text(await App.contractInstance.feeReplyThread.call().then(res => {return res.toNumber()}));
   },
 
   checkIfPaused: function() {
@@ -87,28 +93,30 @@ App = {
   },
 
   getLastActiveThreads: async function(){
-    var indexLastThreads = await App.contractInstance.indexLastThreads.call().then(res => {return res.toNumber();});
-    if(indexLastThreads == 32) {
-      indexLastThreads = (indexLastThreads + 1) % 32;
-    }
-    for(var i = 0; i < indexLastThreads; i++) {
+    for(var i = 0; i < 32; i++) {
       var threadId = await App.contractInstance.lastThreads.call(i).then(res => {return res.toNumber();});
-      var threadObj = await App.contractInstance.threads(threadId).then(response => {
-        return App.createThreadObject(threadId,response[0],response[1],response[4]);
-      });
+      if(threadId != 0) {
+        var threadObj = await App.contractInstance.threads(threadId).then(response => {
+          App.findReplies(threadId, response[3].toNumber());
+          return App.createThreadObject(threadId,response[0],response[1], response[2].toNumber(), response[3].toNumber(), response[4]);
+        });
+      }
       await App.pushToThreads(threadObj);
-    }
-    var indexReplies = await App.contractInstance.indexReplies.call().then(res => {return res.toNumber();});
-    for(var i = 1; i < indexReplies; i++) {
-      var replyId = i;
-      var replyObj = await App.contractInstance.replies(i).then(response => {
-        return App.createReplyObject(replyId, response[2].toNumber(), response[0], response[1], response[4]);
-      });
-      await App.pushToReplies(threadId ,replyObj, replyId);
-      replyId =+ replyId;
     }
     App.reloadAllCards();
     await App.listenToEvents();
+  },
+
+  findReplies: async function(threadId, index) {
+    if(index != 0) {
+      var replyObj = await App.contractInstance.replies(index).then(response => {
+        return App.createReplyObject(index, response[2].toNumber(), response[0], response[1], response[3].toNumber(), response[4]);
+      });
+      App.pushToReplies(threadId, replyObj, replyObj.reply.replyId);
+      if(replyObj.reply.nextReply != 0) {
+        App.findReplies(threadId, replyObj.reply.nextReply);
+      }
+    }
   },
 
   nsfwToggle: function() {
@@ -150,7 +158,6 @@ App = {
         reader.onloadend = function() {
             var buf = buffer.Buffer(reader.result);
             App.ipfs.files.add(buf, (err, result) => {
-              console.log(result);
               previewContainer.attr("src", "https://" + App.ipfsProvider + "/ipfs/" + result[0].hash);
               hash = result[0].hash;
               $.LoadingOverlay("hide");
@@ -226,22 +233,11 @@ App = {
     for(var i = 0; i < App.lastActiveThreads.length; i++) {
         if(App.lastActiveThreads[i].threadId == threadObj.threadId) return;
     }
-    App.lastActiveThreads.unshift(threadObj);
+    App.lastActiveThreads.push(threadObj);
     if(App.lastActiveThreads.length > 32) {
       App.lastActiveThreads.pop();
     }
   },
-
-  array_move: function (arr, old_index, new_index) {
-    if (new_index >= arr.length) {
-        var k = new_index - arr.length + 1;
-        while (k--) {
-            arr.push(undefined);
-        }
-    }
-    arr.splice(new_index, 0, arr.splice(old_index, 1)[0]);
-    return arr;
-},
 
   pushToReplies: function(threadId, replyObj, replyId) {
     for(var i = 0; i < App.lastActiveThreads.length; i++) {
@@ -251,29 +247,33 @@ App = {
             return;
           }
         }
+        App.lastActiveThreads[i].lastUpdated = replyObj.reply.timestamp;
         App.lastActiveThreads[i].replies.push(replyObj.reply);
-        App.array_move(App.lastActiveThreads, App.lastActiveThreads.indexOf(App.lastActiveThreads[i]), 0);
       }
     }
   },
 
-  createThreadObject: function(id, text, ipfshash, timestamp) {
+  createThreadObject: function(id, text, ipfshash, indexFirstReply, indexLastReply, timestamp) {
     return {
       threadId: id,
       text: text,
       ipfshash: ipfshash,
+      indexFirstReply: indexFirstReply,
+      indexLastReply: indexLastReply,
       timestamp: timestamp,
+      lastUpdated: timestamp,
       replies: []
     }
   },
 
-  createReplyObject: function(replyId, replyTo, text, ipfshash, timestamp) {
+  createReplyObject: function(replyId, replyTo, text, ipfshash, nextReply, timestamp) {
     return {
       threadId: replyTo,
       reply: {
         replyId: replyId,
         text: text,
         ipfshash: ipfshash,
+        nextReply: nextReply,
         timestamp: timestamp
       }
     }
@@ -281,7 +281,15 @@ App = {
 
   reloadAllCards: function(){
     $('#contentRow').empty();
-    $.each(App.lastActiveThreads, function(key, thread){
+    var threads = App.lastActiveThreads.sort(function(x, y){
+        return y.lastUpdated.toNumber() - x.lastUpdated.toNumber();
+    });
+    $.each(threads, function(key, thread){
+      if(key == 0) {
+        $("#ribbon").addClass("d-none");
+      } else {
+        $("#ribbon").removeClass("d-none");
+      }
       App.displayThreadCards(thread.text, thread.ipfshash, thread.timestamp.toNumber(), thread.threadId);
     });
   },
@@ -292,7 +300,7 @@ App = {
   },
 
   displayThreadCards: function(text, ipfshash, timestamp, threadId) {
-    if(ipfshash == "") {
+    if(ipfshash == "" || $.trim(ipfshash).length < 46) {
       ipfshash = "QmdrA4mUBg6bKnhhkTXBkbpEfEeqwTZLdBwi11Hx9Q5VhF";
     }
     var imgsrc = "https://" + App.ipfsProvider + "/ipfs/" + ipfshash;
@@ -326,7 +334,7 @@ App = {
         $('#backToHome').removeClass('d-none');
         if(thread.replies.length > 0) {
           $.each(thread.replies, function(key, reply){
-            contentRow.append(App.createThreadPage(reply.text, reply.ipfshash, reply.timestamp, reply.replyId));
+            contentRow.append(App.createThreadPage(reply.text, reply.ipfshash, reply.timestamp, "replyId_" + reply.replyId));
           });
         }
       }
@@ -334,7 +342,7 @@ App = {
   },
 
   createThreadPage: function(text, ipfshash, timestamp, threadId) {
-    if(ipfshash == "") {
+    if(ipfshash == "" || $.trim(ipfshash).length < 46) {
       ipfshash = "QmdrA4mUBg6bKnhhkTXBkbpEfEeqwTZLdBwi11Hx9Q5VhF";
     }
     var ipfsURL = "https://" + App.ipfsProvider + "/ipfs/" + ipfshash;
@@ -354,17 +362,20 @@ App = {
     window.open(ipfsURL, '_blank');
   },
 
-  listenToEvents: function() {
-    App.contractInstance.newThreadEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {      
-      App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
-      App.reloadAllCards();
+  listenToEvents: async function() {
+    App.contractInstance.newThreadEvent({fromBlock: 'latest'}).watch(function(error, event) {
+      //App.pushToThreads(App.createThreadObject(event.args.threadId.toNumber(),event.args.text,event.args.ipfsHash,event.args.timestamp));
+      App.notifyUser("Somebody posted a new thread! Reload the page to view the latest threads.");
+      //App.reloadAllCards();
     });
 
-
-    App.contractInstance.newReplyEvent({fromBlock: '0', toBlock: 'latest'}).watch(function(error, event) {
-      App.pushToReplies(event.args.replyTo.toNumber(), App.createReplyObject(event.args.replyId.toNumber(), event.args.replyTo, event.args.text, event.args.ipfsHash, event.args.timestamp), event.args.replyId.toNumber());
-      App.reloadThreadPage(event.args.replyTo.toNumber());
+    App.contractInstance.newReplyEvent({fromBlock: 'latest'}).watch(function(error, event) {
+      //console.log(event.args);
+      //App.pushToReplies(event.args.replyTo.toNumber(), App.createReplyObject(event.args.replyId.toNumber(), event.args.replyTo, event.args.text, event.args.ipfsHash, event.args.timestamp), event.args.replyId.toNumber());
+      App.notifyUser("Somebody posted a new reply! Reload the page to view the latest threads.");
+      // App.reloadThreadPage(event.args.replyTo.toNumber());
     });
+    // await App.getLastActiveThreads();
   }
 };
 

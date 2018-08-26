@@ -12,6 +12,10 @@
  *   },
  */
 
+var provider, address;
+const privKey = "PVTKEY";
+const PrivateKeyProvider = require("truffle-privatekey-provider");
+
  module.exports = {
    networks: {
      development: {
@@ -24,7 +28,13 @@
     },
     ropsten: {
       network_id: 3,
-      provider: ""
-    }
+      provider: () => new PrivateKeyProvider(privKey, "https://ropsten.infura.io/v3/APIKEY"),
+      gas: 4000000
+    },
+    rinkeby: {
+      provider: () => new PrivateKeyProvider(privKey, "https://rinkeby.infura.io/v3/APIKEY"),
+      gasPrice: 50000000000,
+      network_id: 4,
+    },
    }
  };
